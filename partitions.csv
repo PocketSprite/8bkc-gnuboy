@@ -1,0 +1,4 @@
+# Name,   Type, SubType, Offset,  Size
+chooser,  app,  factory, 0x010000, 0x080000
+nvs,      data, nvs,     0x090000, 0x010000
+appfs,    1,    3,       0x0A0000, 0xE00000

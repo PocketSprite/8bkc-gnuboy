@@ -1,0 +1,22 @@
+menu "GBFemto config"
+
+choice GBFEMTO_HW_VER_SEL
+    prompt "GBFemto hardware version"
+    default GBFEMTO_HW_VER_0
+    help
+        Version of the GBFemto hardware:
+        - V0 - Prototype. No way to charge battery yet. Motor driver as audio output
+        - V1 - First rev. Micro-usb to charge, DAC output for audio
+
+config GBFEMTO_HW_VER_V0
+    bool "Version 0"
+config GBFEMTO_HW_VER_V1
+    bool "Version 1"
+endchoice
+
+config GBFEMTO_HW_VER
+    int
+    default 0 if GBFEMTO_HW_VER_V0
+    default 1 if GBFEMTO_HW_VER_V1
+
+endmenu

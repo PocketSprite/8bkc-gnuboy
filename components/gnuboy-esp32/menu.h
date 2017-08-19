@@ -1,0 +1,5 @@
+
+
+void gbfemtoMenuInit();
+void gbfemtoShowMenu();
+
