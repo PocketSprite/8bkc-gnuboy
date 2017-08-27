@@ -124,6 +124,7 @@ void ev_poll()
 
 uint16_t oledfb[80*64];
 
+//Averages four pixels into one
 int getAvgPix(uint16_t* bufs, int pitch, int x, int y) {
 	int col;
 	if (x<0 || x>=160) return 0;
@@ -135,6 +136,20 @@ int getAvgPix(uint16_t* bufs, int pitch, int x, int y) {
 	col+=(bufs[(x+1)+((y+1)*(pitch>>1))]&0xE79C)>>2;
 	return col&0xffff;
 }
+
+//Averages four pixels into one, but does subpixel rendering to give a slightly higher
+//X resolution at the cost of color fringing.
+int getAvgPixSubpixrendering(uint16_t* bufs, int pitch, int x, int y) {
+	int c1, c2, col;
+	if (x<0 || x>=160) return 0;
+	c1=(bufs[x+(y*(pitch>>1))]&0xF7DE)>>1;
+	c1+=(bufs[x+((y+1)*(pitch>>1))]&0xF7DE)>>1;
+	c2=(bufs[(x+1)+(y*(pitch>>1))]&0xF7DE)>>1;
+	c2+=(bufs[(x+1)+((y+1)*(pitch>>1))]&0xF7DE)>>1;
+	col=(c1&0xF800)+((c1&0x7C0)>>1)+((c2&0x7C0)>>1)+(c2&0x1F);
+	return col;
+}
+
 
 
 int addOverlayPixel(uint16_t p, uint32_t ov) {
@@ -179,7 +194,8 @@ void gnuboy_esp32_videohandler() {
 		for (y=0; y<64; y++) {
 			if (((y+1)&14)==0) hc++;
 			for (x=0; x<80; x++) {
-				c=getAvgPix((uint16_t*)rendering, 160*2, (x*2), (y*2)+hc+2);
+//				c=getAvgPix((uint16_t*)rendering, 160*2, (x*2), (y*2)+hc+2);
+				c=getAvgPixSubpixrendering((uint16_t*)rendering, 160*2, (x*2), (y*2)+hc+2);
 				if (ovl) c=addOverlayPixel(c, *ovl++);
 				*oledfbptr++=(c>>8)+((c&0xff)<<8);
 			}

@@ -26,15 +26,14 @@
 #include "8bkc-hal.h"
 #include "appfs.h"
 
-//#include "gngbsys.h"
 
 unsigned char *gbbootromdata=NULL;
 
 int gnuboymain(int argc, char *argv[]);
+
 void gnuboyTask(void *pvParameters)
 {
 	gnuboymain(0, NULL);
-	
 	//Save state
 	const esp_partition_t* part;
 	part=esp_partition_find_first(40, 3, NULL);
@@ -99,7 +98,7 @@ void app_main()
 	spi_flash_mmap_handle_t hbootrom;
 	esp_err_t err;
 	esp_log_level_set("*", ESP_LOG_INFO);
-//	esp_log_level_set("appfs", ESP_LOG_DEBUG);
+	esp_log_level_set("appfs", ESP_LOG_DEBUG);
 	kchal_init();
 	nvs_flash_init();
 	
@@ -116,7 +115,7 @@ void app_main()
 	}
 	rombankLoadBootrom();
 	printf("Initialized. bootROM@%p\n", gbbootromdata);
-	xTaskCreatePinnedToCore(&videoTask, "videoTask", 1024, NULL, 5, NULL, 1);
+	xTaskCreatePinnedToCore(&videoTask, "videoTask", 1024*2, NULL, 5, NULL, 1);
 	xTaskCreatePinnedToCore(&lineTask, "lineTask", 1024, NULL, 6, NULL, 1);
 	xTaskCreatePinnedToCore(&gnuboyTask, "gngbTask", 1024*4, NULL, 5, NULL, 0);
 	xTaskCreatePinnedToCore(&monTask, "monTask", 1024*2, NULL, 7, NULL, 0);

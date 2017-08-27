@@ -25,8 +25,8 @@ static nvs_handle nvs;
 static uint8_t *bootrom=NULL;
 //static uint8_t *rombank0=NULL; //ToDo: Fix this
 
-#define CARTROM_NAME "sml.gb"
-
+#define CARTROM_NAME "JetPakDX.gbc"
+//#define CARTROM_NAME "TetrisDX.gbc"
 
 //Game Boy ROM banks are 16KiB. We map it into the 64K MMU banks of the ESP32.
 uint8_t *getRomBank(int bank) {
@@ -52,13 +52,17 @@ uint8_t *getRomBank(int bank) {
 		spi_flash_munmap(page[oldest].handle);
 	}
 
+	printf("Loading %s 64K seg %d into slot %d, mempos %p\n", CARTROM_NAME , espBank, oldest, page[oldest].data);
 	appfs_handle_t fd=appfsOpen(CARTROM_NAME);
 	esp_err_t err=appfsMmap(fd, (espBank*(1<<16)), (1<<16), (const void**)&page[oldest].data, SPI_FLASH_MMAP_DATA, &page[oldest].handle);
-	if (err!=ESP_OK) printf("Couldn't map cartrom part!\n");
+	if (err!=ESP_OK) {
+		printf("Couldn't map cartrom part!\n");
+		return NULL;
+	}
 
 	page[oldest].use=ctr;
 	page[oldest].bank=espBank;
-	printf("Loading ESP bank %d into slot %d, mempos %p\n", espBank, oldest, page[oldest].data);
+	printf("Done, mempos %p\n", page[oldest].data);
 	return page[oldest].data+offset;
 }
 
