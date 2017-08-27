@@ -1,10 +1,17 @@
 #ifndef EMU_H
 #define EMU_H
 
-void emu_run();
+#define EMU_RUN_CONT 0
+#define EMU_RUN_NEWROM 1
+#define EMU_RUN_RESET 2
+#define EMU_RUN_POWERDOWN 3
+
+
+int emu_run();
 void emu_reset();
 
-extern int emu_running;
+int gnuboymain(char *rom, int loadState);
+
 
 #endif
 

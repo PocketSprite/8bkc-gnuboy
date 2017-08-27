@@ -1,4 +1,3 @@
-//ToDo: convert to an esp32 partition reader/writer
 #include <string.h>
 #include <stdio.h>
 
@@ -12,7 +11,7 @@
 #include "mem.h"
 #include "sound.h"
 
-#include "esp_partition.h"
+#include "appfs.h"
 #include <malloc.h>
 #include "rombank.h"
 
@@ -127,7 +126,7 @@ const struct svar svars[] =
 };
 
 
-void loadstate(esp_partition_t *part)
+void loadstate(appfs_handle_t f)
 {
 	esp_err_t r;
 	int i, j;
@@ -142,7 +141,7 @@ void loadstate(esp_partition_t *part)
 
 	//fseek(f, 0, SEEK_SET);
 	//fread(buf, 4096, 1, f);
-	r=esp_partition_read(part, 0, buf, 4096);
+	r=appfsRead(f, 0, buf, 4096);
 	printf("save: load header @%x len %x\n", 0, 4096);
 	if (r!=ESP_OK) die("reading header");
 	
@@ -190,24 +189,24 @@ void loadstate(esp_partition_t *part)
 
 	//fseek(f, iramblock<<12, SEEK_SET);
 	//fread(ram.ibank, 4096, irl, f);
-	r=esp_partition_read(part, iramblock<<12, ram.ibank, 4096*irl);
+	r=appfsRead(f, iramblock<<12, ram.ibank, 4096*irl);
 	printf("save: load iram @%x len %x\n", iramblock<<12, 4096*irl);
 	if (r!=ESP_OK) die("reading iramblock");
 	
 	//fseek(f, vramblock<<12, SEEK_SET);
 	//fread(lcd.vbank, 4096, vrl, f);
-	r=esp_partition_read(part, vramblock<<12, lcd.vbank, 4096*vrl);
+	r=appfsRead(f, vramblock<<12, lcd.vbank, 4096*vrl);
 	printf("save: load vram @%x len %x\n", vramblock<<12, 4096*vrl);
 	if (r!=ESP_OK) die("reading vramblock");
 	
 	//fseek(f, sramblock<<12, SEEK_SET);
 	//fread(ram.sbank, 4096, srl, f);
-	r=esp_partition_read(part, sramblock<<12, ram.sbank, 4096*srl);
+	r=appfsRead(f, sramblock<<12, ram.sbank, 4096*srl);
 	printf("save: load sram @%x len %x\n", sramblock<<12, 4096*srl);
 	if (r!=ESP_OK) die("reading sramblock");
 }
 
-void savestate(esp_partition_t *part)
+void savestate(appfs_handle_t f)
 {
 	int i;
 	esp_err_t r;
@@ -256,32 +255,31 @@ void savestate(esp_partition_t *part)
 
 	printf("irl %d vrl %d srl %d\n", irl, vrl, srl);
 
-//	if (esp_partition_erase_range(part, 0, (sramblock<<12)+4096*srl)!=ESP_OK) printf("ERASE FAIL!\n");
-	if (esp_partition_erase_range(part, 0, 1<<16)!=ESP_OK) printf("ERASE FAIL!\n");
+	if (appfsErase(f, 0, 1<<16)!=ESP_OK) printf("ERASE FAIL!\n");
 	printf("Erasing %d bytes.\n", (sramblock<<12)+4096*srl);
 
 	//fseek(f, 0, SEEK_SET);
 	//fwrite(buf, 4096, 1, f);
-	r=esp_partition_write(part, 0, buf, 4096);
+	r=appfsWrite(f, 0, buf, 4096);
 	printf("save: write header @%x len %x\n", 0, 4096);
 
 	free(buf);
 	
 	//fseek(f, iramblock<<12, SEEK_SET);
 	//fwrite(ram.ibank, 4096, irl, f);
-	r=esp_partition_write(part, iramblock<<12, ram.ibank, 4096*irl);
+	r=appfsWrite(f, iramblock<<12, ram.ibank, 4096*irl);
 	printf("save: load iram @%x len %x\n", iramblock<<12, 4096*irl);
 	if (r!=ESP_OK) die("writing viramblock");
 	
 	//fseek(f, vramblock<<12, SEEK_SET);
 	//fwrite(lcd.vbank, 4096, vrl, f);
-	r=esp_partition_write(part, vramblock<<12, lcd.vbank, 4096*vrl);
+	r=appfsWrite(f, vramblock<<12, lcd.vbank, 4096*vrl);
 	printf("save: load vram @%x len %x\n", vramblock<<12, 4096*vrl);
 	if (r!=ESP_OK) die("writing vramblock");
 	
 	//fseek(f, sramblock<<12, SEEK_SET);
 	//fwrite(ram.sbank, 4096, srl, f);
-	r=esp_partition_write(part, sramblock<<12, ram.sbank, 4096*srl);
+	r=appfsWrite(f, sramblock<<12, ram.sbank, 4096*srl);
 	printf("save: load sram @%x len %x\n", sramblock<<12, 4096*srl);
 	if (r!=ESP_OK) die("writing sramblock");
 }

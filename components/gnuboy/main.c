@@ -24,31 +24,22 @@ void die(char *fmt, ...)
 
 void startEmuHook();
 
-int gnuboymain(int argc, char *argv[])
+int gnuboymain(char *rom, int loadState)
 {
-	int i;
-	char *opt, *arg, *cmd, *s, *rom = "na";
-
-
-	/* If we have special perms, drop them ASAP! */
+	int ret;
 	vid_preinit();
-
-	/* FIXME - make interface modules responsible for atexit() */
 	vid_init();
 	pcm_init();
-
 	sys_sanitize(rom);
-	
 	loader_init(rom);
-	
 	emu_reset();
 	startEmuHook();
-	emu_run();
-
+	if (!loadState) emu_reset();
+	ret=emu_run();
+	rom_unload();
 	vid_close();
 	pcm_close();
-
-	return 0;
+	return ret;
 }
 
 

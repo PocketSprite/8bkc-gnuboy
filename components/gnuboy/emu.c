@@ -11,12 +11,11 @@
 #include "sys.h"
 #include "sound.h"
 #include "cpu.h"
+#include "emu.h"
 
 
 static int framelen = 16743;
 static int framecount;
-
-int emu_running;
 
 /*
 rcvar_t emu_exports[] =
@@ -69,15 +68,14 @@ static void emu_step()
 
 void *sys_timer();
 
-void emu_run()
+int emu_run()
 {
 	void *timer = sys_timer();
 	int delay;
 
 	vid_begin();
 	lcd_begin();
-	emu_running=1;
-	while (emu_running)
+	while (1)
 	{
 		cpu_emulate(2280);
 		while (R_LY > 0 && R_LY < 144)
@@ -94,6 +92,8 @@ void emu_run()
 		} else {
 			sys_sleep(0);
 		}
+		int r=sys_handle_input();
+		if (r!=EMU_RUN_CONT) return r;
 		//doevents();
 		vid_begin();
 		if (framecount) { if (!--framecount) die("finished\n"); }
@@ -104,6 +104,7 @@ void emu_run()
 		while (R_LY > 0) /* wait for next frame */
 			emu_step();
 	}
+	return 0;
 }
 
 

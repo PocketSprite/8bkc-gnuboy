@@ -111,6 +111,9 @@ static void initmem(void *mem, int size)
 		memset(p, memfill, size);
 }
 
+void rom_unload() {
+	rombankUnload();
+}
 
 int rom_load()
 {
@@ -118,6 +121,7 @@ int rom_load()
 	byte c, *data, *header;
 	int len = 0, rlen, i;
 
+	rombankLoad(romfile);
 	data = getRomBank(0);
 	header = data;
 	
@@ -268,8 +272,9 @@ void rtc_load()
 
 void loader_unload()
 {
+	rombankUnload();
 	sram_save();
-	if (romfile) free(romfile);
+	//if (romfile) free(romfile);
 	if (sramfile) free(sramfile);
 	if (saveprefix) free(saveprefix);
 	if (ram.sbank) free(ram.sbank);
@@ -309,9 +314,9 @@ void loader_init(char *s)
 	char *name, *p;
 #if 0
 	sys_checkdir(savedir, 1); /* needs to be writable */
+#endif
 
 	romfile = s;
-#endif
 	rom_load();
 
 	vid_settitle(rom.name);

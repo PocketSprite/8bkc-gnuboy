@@ -9,6 +9,7 @@
 #include "rombank.h"
 #include "save.h"
 #include "hw.h"
+#include <string.h>
 
 #include "emu.h"
 #include "defs.h"
@@ -24,35 +25,73 @@
 #include "esp_log.h"
 
 #include "8bkc-hal.h"
+#include "8bkc-ugui.h"
+#include "8bkcgui-widgets.h"
 #include "appfs.h"
 
+#include "nvs.h"
+#include "nvs_flash.h"
 
 unsigned char *gbbootromdata=NULL;
 
-int gnuboymain(int argc, char *argv[]);
+char statefile[128];
 
-void gnuboyTask(void *pvParameters)
-{
-	gnuboymain(0, NULL);
+void gnuboyTask(void *pvParameters) {
+	char rom[128];
+	nvs_handle nvsh;
+	//Let other threads start
+	vTaskDelay(200/portTICK_PERIOD_MS);
+	esp_err_t r=nvs_open("gnuboy", NVS_READWRITE, &nvsh);
+	if (r!=ESP_OK) {
+		printf("nvs_open err %d\n", r);
+	}
+
+	int ret;
+	int loadState=1;
+
+	while(1) {
+		unsigned int size=sizeof(rom);
+		r=nvs_get_str(nvsh, "rom", rom, &size);
+		if (r==ESP_OK && appfsExists(rom)) {
+			//Figure out name for statefile
+			strcpy(statefile, rom);
+			char *dot=strrchr(statefile, '.');
+			if (dot==NULL) dot=statefile+strlen(statefile);
+			strcpy(dot, ".state");
+			printf("State file: %s\n", statefile);
+			//Run emu
+			ret=gnuboymain(rom, loadState);
+		} else {
+			ret=EMU_RUN_NEWROM;
+		}
+
+		if (ret==EMU_RUN_NEWROM) {
+			kcugui_init();
+			appfs_handle_t f=kcugui_filechooser("*.gb,*.gbc", "SELECT ROM", NULL, NULL);
+			const char *rrom;
+			appfsEntryInfo(f, &rrom, NULL);
+			printf("Selected ROM %s\n", rrom);
+			nvs_set_str(nvsh, "rom", rrom);
+			kcugui_deinit();
+			loadState=1;
+		} else if (ret==EMU_RUN_RESET) {
+			loadState=0;
+		} else if (ret==EMU_RUN_POWERDOWN) {
+			break;
+		}
+	}
 	//Save state
-	const esp_partition_t* part;
-	part=esp_partition_find_first(40, 3, NULL);
-	if (part==0) {
-		printf("Couldn't find state part!\n");
+	appfs_handle_t fd;
+	r=appfsCreateFile(statefile, 1<<16, &fd);
+	if (r!=ESP_OK) {
+		printf("Couldn't create save state %s: %d\n", statefile, r);
 	} else {
-		savestate(part);
-		printf("State saved.\n");
+		savestate(fd);
 	}
 	kchal_power_down();
-	
 }
 
-void gnuboy_esp32_videohandler();
 void lineTask();
-
-void videoTask(void *pvparameters) {
-	gnuboy_esp32_videohandler();
-}
 
 int frames; //used in lcd
 
@@ -63,25 +102,20 @@ void monTask() {
 		printf("Free mem: %d\n", xPortGetFreeHeapSize());
 		frames=0;
 	}
-
 //	vTaskDelete(NULL);
 }
 
 
-void quitEmu() {
-	emu_running=0;
-}
 #include "cpuregs.h"
 
 void startEmuHook() {
 	const esp_partition_t* part;
 	if (kchal_get_keys()&KC_BTN_START) return;
-	part=esp_partition_find_first(40, 3, NULL);
-	if (part==0) {
-		printf("Couldn't find state part!\n");
-	} else {
-		loadstate(part);
+	if (appfsExists(statefile)) {
+		loadstate(appfsOpen(statefile));
 		rombankStateLoaded();
+	} else {
+		printf("Couldn't find state part!\n");
 	}
 	vram_dirty();
 	pal_dirty();
@@ -91,7 +125,6 @@ void startEmuHook() {
 }
 
 #define BOOTROM_NAME "gbcrom.bin"
-
 
 void app_main()
 {
@@ -113,11 +146,9 @@ void app_main()
 	} else {
 		printf("No bootrom found!\n");
 	}
-	rombankLoadBootrom();
 	printf("Initialized. bootROM@%p\n", gbbootromdata);
-	xTaskCreatePinnedToCore(&videoTask, "videoTask", 1024*2, NULL, 5, NULL, 1);
 	xTaskCreatePinnedToCore(&lineTask, "lineTask", 1024, NULL, 6, NULL, 1);
-	xTaskCreatePinnedToCore(&gnuboyTask, "gngbTask", 1024*4, NULL, 5, NULL, 0);
+	xTaskCreatePinnedToCore(&gnuboyTask, "gnuboyTask", 1024*6, NULL, 5, NULL, 0);
 	xTaskCreatePinnedToCore(&monTask, "monTask", 1024*2, NULL, 7, NULL, 0);
 }
 

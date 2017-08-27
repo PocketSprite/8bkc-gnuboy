@@ -2,10 +2,10 @@
 #define SAVE_H
 
 #include <stdio.h>
-#include "esp_partition.h"
+#include "appfs.h"
 
-void savestate(esp_partition_t *f);
-void loadstate(esp_partition_t *f);
+void savestate(appfs_handle_t f);
+void loadstate(appfs_handle_t f);
 
 #endif
 

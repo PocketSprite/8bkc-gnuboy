@@ -17,7 +17,7 @@
 
 
 
-static uint16_t *frontbuff, *backbuff;
+static uint16_t *frontbuff=NULL, *backbuff=NULL;
 static volatile uint16_t *toRender=NULL;
 static volatile uint16_t *overlay=NULL;
 struct fb fb;
@@ -29,8 +29,17 @@ void vid_preinit()
 {
 }
 
+void gnuboy_esp32_videohandler();
+void lineTask();
+
+void videoTask(void *pvparameters) {
+	gnuboy_esp32_videohandler();
+}
+
+
 void vid_init()
 {
+	doShutdown=false;
 	frontbuff=malloc(160*144*2);
 	backbuff=malloc(160*144*2);
 	fb.w = 160;
@@ -52,6 +61,8 @@ void vid_init()
 	memset(frontbuff, 0, 160*144*2);
 	memset(backbuff, 0, 160*144*2);
 
+	renderSem=xSemaphoreCreateBinary();
+	xTaskCreatePinnedToCore(&videoTask, "videoTask", 1024*2, NULL, 5, NULL, 1);
 	ets_printf("Video inited.\n");
 }
 
@@ -60,6 +71,10 @@ void vid_close()
 {
 	doShutdown=true;
 	xSemaphoreGive(renderSem);
+	vTaskDelay(100); //wait till video thread shuts down... pretty dirty
+	free(frontbuff);
+	free(backbuff);
+	vQueueDelete(renderSem);
 }
 
 void vid_settitle(char *title)
@@ -178,7 +193,6 @@ int addOverlayPixel(uint16_t p, uint32_t ov) {
 //This thread runs on core 1.
 void gnuboy_esp32_videohandler() {
 	int x, y;
-	renderSem=xSemaphoreCreateBinary();
 	uint16_t *oledfbptr;
 	uint16_t c;
 	uint32_t *ovl;
