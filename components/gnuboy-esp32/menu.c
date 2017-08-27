@@ -62,6 +62,9 @@ void gbfemtoMenuInit() {
 #define SCN_BRIGHT 1
 #define SCN_CHROM 2
 #define SCN_PWRDWN 3
+#define SCN_RESET 4
+
+#define SCN_COUNT 5
 
 void pcm_mute();
 
@@ -81,12 +84,12 @@ int gbfemtoShowMenu() {
 		oldIo=newIo;
 		if (io&PAD_UP && !scroll) {
 			menuItem++;
-			if (menuItem>=4) menuItem=0;
+			if (menuItem>=SCN_COUNT) menuItem=0;
 			scroll=-SCROLLSPD;
 		}
 		if (io&KC_BTN_DOWN && !scroll) {
 			menuItem--;
-			if (menuItem<0) menuItem=3;
+			if (menuItem<0) menuItem=SCN_COUNT-1;
 			scroll=SCROLLSPD;
 		}
 		if ((io&KC_BTN_LEFT) || (io&KC_BTN_RIGHT)) {
@@ -111,6 +114,9 @@ int gbfemtoShowMenu() {
 			if (menuItem==SCN_CHROM) {
 				return EMU_RUN_NEWROM;
 			}
+			if (menuItem==SCN_RESET) {
+				return EMU_RUN_RESET;
+			}
 		}
 
 		if (io&KC_BTN_START) return EMU_RUN_CONT;
@@ -128,6 +134,7 @@ int gbfemtoShowMenu() {
 			renderGfx(overlay, 0, 16, 0,32*menuItem,80,32);
 		}
 		
+		//Handle volume/brightness bars
 		if (scroll==0 && (menuItem==SCN_VOLUME || menuItem==SCN_BRIGHT)) {
 			int v=0;
 			if (menuItem==SCN_VOLUME) v=kchal_get_volume();
