@@ -63,10 +63,17 @@ void gbfemtoMenuInit() {
 #define SCN_CHROM 2
 #define SCN_PWRDWN 3
 #define SCN_RESET 4
+#define SCN_EXIT 5
 
-#define SCN_COUNT 5
+#define SCN_COUNT 6
 
 void pcm_mute();
+
+void gbfemtoShowSnapshotting(uint32_t *overlay) {
+	memset(overlay, 0, 80*64*4);
+	renderGfx(overlay, 0, 14, 0, 268, 80, 40);
+	vidRenderOverlay();
+}
 
 //Show in-game menu reachable by pressing the power button
 int gbfemtoShowMenu() {
@@ -74,7 +81,9 @@ int gbfemtoShowMenu() {
 	int menuItem=0;
 	int prevItem=0;
 	int scroll=0;
+	int doRefresh=1;
 	uint32_t *overlay=vidGetOverlayBuf();
+	kchal_sound_mute(1);
 	while(1) {
 		esp_task_wdt_feed();
 		memset(overlay, 0, 80*64*4);
@@ -102,33 +111,47 @@ int gbfemtoShowMenu() {
 			if (v>255) v=255;
 			if (menuItem==SCN_VOLUME) {
 				kchal_set_volume(v);
+				doRefresh=1;
 			}
 			if (menuItem==SCN_BRIGHT) {
 				kchal_set_contrast(v);
+				doRefresh=1;
 			}
 		}
 		if ((io&KC_BTN_A) || (io&KC_BTN_B)) {
 			if (menuItem==SCN_PWRDWN) {
+				gbfemtoShowSnapshotting(overlay);
 				return EMU_RUN_POWERDOWN;
 			}
 			if (menuItem==SCN_CHROM) {
+				gbfemtoShowSnapshotting(overlay);
 				return EMU_RUN_NEWROM;
 			}
 			if (menuItem==SCN_RESET) {
+				kchal_sound_mute(0);
 				return EMU_RUN_RESET;
+			}
+			if (menuItem==SCN_EXIT) {
+				gbfemtoShowSnapshotting(overlay);
+				return EMU_RUN_EXIT;
 			}
 		}
 
-		if (io&KC_BTN_START) return EMU_RUN_CONT;
+		if (io&KC_BTN_START) {
+			kchal_sound_mute(0);
+			return EMU_RUN_CONT;
+		}
 
 		if (scroll>0) scroll+=SCROLLSPD;
 		if (scroll<0) scroll-=SCROLLSPD;
 		if (scroll>64 || scroll<-64) {
 			prevItem=menuItem;
 			scroll=0;
+			doRefresh=1; //show last scroll thing
 		}
 		if (prevItem!=menuItem) renderGfx(overlay, 0, 16+scroll, 0,32*prevItem,80,32);
 		if (scroll) {
+			doRefresh=1;
 			renderGfx(overlay, 0, 16+scroll+((scroll>0)?-64:64), 0,32*menuItem,80,32);
 		} else {
 			renderGfx(overlay, 0, 16, 0,32*menuItem,80,32);
@@ -141,12 +164,13 @@ int gbfemtoShowMenu() {
 			if (menuItem==SCN_BRIGHT) v=kchal_get_contrast();
 			if (v<0) v=0;
 			if (v>255) v=255;
-			renderGfx(overlay, 14, 25+16, 14, 129, (v*60)/256, 3);
+			renderGfx(overlay, 14, 25+16, 14, 193, (v*60)/256, 4);
 		}
 		
-		vidRenderOverlay();
-		//Send out dummy sound
-		pcm_mute();
+		if (doRefresh) {
+			vidRenderOverlay();
+		}
+		doRefresh=0;
 		vTaskDelay(20/portTICK_PERIOD_MS);
 	}
 }

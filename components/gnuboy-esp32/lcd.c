@@ -117,6 +117,7 @@ uint32_t *vidGetOverlayBuf() {
 void vidRenderOverlay() {
 	overlay=(uint16_t*)fb.ptr;
 	if (fb.ptr == (unsigned char*)frontbuff ) toRender=(uint16_t*)backbuff; else toRender=(uint16_t*)frontbuff;
+	xSemaphoreGive(renderSem);
 }
 
 void kb_init()
@@ -200,7 +201,8 @@ void gnuboy_esp32_videohandler() {
 	printf("Video thread running\n");
 	memset(oledfb, 0, sizeof(oledfb));
 	while(!doShutdown) {
-		if (toRender==NULL) xSemaphoreTake(renderSem, portMAX_DELAY);
+		//if (toRender==NULL) 
+		xSemaphoreTake(renderSem, portMAX_DELAY);
 		rendering=toRender;
 		ovl=(uint32_t*)overlay;
 		oledfbptr=oledfb;

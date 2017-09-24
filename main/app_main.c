@@ -35,7 +35,7 @@
 char statefile[128];
 
 void gnuboyTask(void *pvParameters) {
-	char rom[128];
+	char rom[128]="";
 	nvs_handle nvsh;
 	//Let other threads start
 	vTaskDelay(200/portTICK_PERIOD_MS);
@@ -49,8 +49,10 @@ void gnuboyTask(void *pvParameters) {
 
 	unsigned int size=sizeof(rom);
 	r=nvs_get_str(nvsh, "rom", rom, &size);
+
 	while(1) {
-		if (r==ESP_OK && appfsExists(rom)) {
+		int emuRan=0;
+		if (r==ESP_OK && strlen(rom)>0 && appfsExists(rom)) {
 			//Figure out name for statefile
 			strcpy(statefile, rom);
 			char *dot=strrchr(statefile, '.');
@@ -60,9 +62,25 @@ void gnuboyTask(void *pvParameters) {
 			//Kill rom str so when emu crashes, we don't try to load again
 			nvs_set_str(nvsh, "rom", "");
 			//Run emu
+			kchal_sound_mute(0);
 			ret=gnuboymain(rom, loadState);
+			emuRan=1;
 		} else {
 			ret=EMU_RUN_NEWROM;
+		}
+
+		if (ret==EMU_RUN_NEWROM || ret==EMU_RUN_POWERDOWN || ret==EMU_RUN_EXIT) {
+			//Saving state only makes sense when emu actually ran...
+			if (emuRan) {
+				//Save state
+				appfs_handle_t fd;
+				r=appfsCreateFile(statefile, 1<<16, &fd);
+				if (r!=ESP_OK) {
+					printf("Couldn't create save state %s: %d\n", statefile, r);
+				} else {
+					savestate(fd);
+				}
+			}
 		}
 
 		if (ret==EMU_RUN_NEWROM) {
@@ -79,15 +97,10 @@ void gnuboyTask(void *pvParameters) {
 		} else if (ret==EMU_RUN_POWERDOWN) {
 			nvs_set_str(nvsh, "rom", rom);
 			break;
+		} else if (ret==EMU_RUN_EXIT) {
+			printf("Exiting to chooser...\n");
+			kchal_exit_to_chooser();
 		}
-	}
-	//Save state
-	appfs_handle_t fd;
-	r=appfsCreateFile(statefile, 1<<16, &fd);
-	if (r!=ESP_OK) {
-		printf("Couldn't create save state %s: %d\n", statefile, r);
-	} else {
-		savestate(fd);
 	}
 	kchal_power_down();
 }

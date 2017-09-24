@@ -18,6 +18,5 @@ include $(IDF_PATH)/make/component_common.mk
 
 
 graphics.inc: $(COMPONENT_PATH)/graphics.xcf
-	convert $^ -background none -layers flatten -crop 80x192+0+0 graphics.rgba
-	#convert $^ -background none -layers flatten -crop 80x192+0+0 graphics.png
+	convert $^ -background none -layers flatten -crop 80x307+0+0 graphics.rgba
 	cat graphics.rgba | xxd -i > graphics.inc
