@@ -49,9 +49,9 @@ void gnuboyTask(void *pvParameters) {
 	int ret;
 	int loadState=1;
 
+	unsigned int size=sizeof(rom);
+	r=nvs_get_str(nvsh, "rom", rom, &size);
 	while(1) {
-		unsigned int size=sizeof(rom);
-		r=nvs_get_str(nvsh, "rom", rom, &size);
 		if (r==ESP_OK && appfsExists(rom)) {
 			//Figure out name for statefile
 			strcpy(statefile, rom);
@@ -59,6 +59,8 @@ void gnuboyTask(void *pvParameters) {
 			if (dot==NULL) dot=statefile+strlen(statefile);
 			strcpy(dot, ".state");
 			printf("State file: %s\n", statefile);
+			//Kill rom str so when emu crashes, we don't try to load again
+			nvs_set_str(nvsh, "rom", "");
 			//Run emu
 			ret=gnuboymain(rom, loadState);
 		} else {
@@ -70,13 +72,14 @@ void gnuboyTask(void *pvParameters) {
 			appfs_handle_t f=kcugui_filechooser("*.gb,*.gbc", "SELECT ROM", NULL, NULL);
 			const char *rrom;
 			appfsEntryInfo(f, &rrom, NULL);
-			printf("Selected ROM %s\n", rrom);
-			nvs_set_str(nvsh, "rom", rrom);
+			strncpy(rom, rrom, sizeof(rom));
+			printf("Selected ROM %s\n", rom);
 			kcugui_deinit();
 			loadState=1;
 		} else if (ret==EMU_RUN_RESET) {
 			loadState=0;
 		} else if (ret==EMU_RUN_POWERDOWN) {
+			nvs_set_str(nvsh, "rom", rom);
 			break;
 		}
 	}

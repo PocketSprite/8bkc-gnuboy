@@ -31,11 +31,17 @@ int gnuboymain(char *rom, int loadState)
 	vid_init();
 	pcm_init();
 	sys_sanitize(rom);
-	loader_init(rom);
+	int r=loader_init(rom);
+	if (!r) {
+		printf("Loader could not load ROM %s!\n", rom);
+		ret=EMU_RUN_NEWROM;
+		goto err;
+	}
 	emu_reset();
 	startEmuHook();
 	if (!loadState) emu_reset();
 	ret=emu_run();
+err:
 	rom_unload();
 	vid_close();
 	pcm_close();

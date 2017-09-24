@@ -137,14 +137,26 @@ int rom_load()
 	mbc.romsize = romsize_table[header[0x0148]];
 	mbc.ramsize = ramsize_table[header[0x0149]];
 
-	if (!mbc.romsize) die("unknown ROM size %02X\n", header[0x0148]);
-	if (!mbc.ramsize) die("unknown SRAM size %02X\n", header[0x0149]);
+	if (!mbc.romsize) {
+		printf("unknown ROM size %02X\n", header[0x0148]);
+		return 0;
+	}
+	if (!mbc.ramsize) {
+		printf("unknown SRAM size %02X\n", header[0x0149]);
+		return 0;
+	}
 
 	rlen = 16384 * mbc.romsize;
 	
+	if (mbc.ramsize > 2) {
+		printf("Header says cart has %d * 8K of save RAM. We don't have that; trying with less.\n", mbc.ramsize);
+		mbc.ramsize=2;
+	}
+	
 	ram.sbank = malloc(8192 * mbc.ramsize);
 	if (ram.sbank==NULL) {
-		die("Can't allocate %d bytes for SRAM!\n", 8192 * mbc.ramsize);
+		printf("Can't allocate %d bytes for SRAM!\n", 8192 * mbc.ramsize);
+		return 0;
 	}
 	printf("%d banks of 8K memory, %d rom banks of 16K initialized.\n", mbc.ramsize, mbc.romsize);
 	printf("%p\n", ram.sbank);
@@ -161,7 +173,7 @@ int rom_load()
 	hw.cgb=1;
 
 
-	return 0;
+	return 1;
 }
 
 int sram_load()
@@ -309,7 +321,7 @@ static void cleanup()
 	/* IDEA - if error, write emergency savestate..? */
 }
 
-void loader_init(char *s)
+int loader_init(char *s)
 {
 	char *name, *p;
 #if 0
@@ -317,7 +329,8 @@ void loader_init(char *s)
 #endif
 
 	romfile = s;
-	rom_load();
+	int r=rom_load();
+	if (!r) return r;
 
 	vid_settitle(rom.name);
 #if 0
@@ -351,6 +364,7 @@ void loader_init(char *s)
 
 	atexit(cleanup);
 #endif
+	return r;
 }
 
 /*

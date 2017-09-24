@@ -56,9 +56,17 @@ uint8_t *getRomBank(int bank) {
 		printf("Unloading ESP bank %d\n", page[oldest].bank);
 		spi_flash_munmap(page[oldest].handle);
 	}
-
-	printf("Loading 64K seg %d into slot %d, mempos %p\n", espBank, oldest, page[oldest].data);
-	esp_err_t err=appfsMmap(romFd, (espBank*(1<<16)), (1<<16), (const void**)&page[oldest].data, SPI_FLASH_MMAP_DATA, &page[oldest].handle);
+	
+	int bankLen=(1<<16);
+	int fdSize;
+	appfsEntryInfo(romFd, NULL, &fdSize);
+	if (espBank*(1<<16)+bankLen > fdSize) bankLen=fdSize-espBank*(1<<16);
+	if (bankLen<=0) {
+		printf("Bank %d not in file.\n", espBank);
+		return NULL;
+	}
+	printf("Loading %dK seg %d into slot %d, mempos %p\n", bankLen, espBank, oldest, page[oldest].data);
+	esp_err_t err=appfsMmap(romFd, (espBank*(1<<16)), bankLen, (const void**)&page[oldest].data, SPI_FLASH_MMAP_DATA, &page[oldest].handle);
 	if (err!=ESP_OK) {
 		printf("Couldn't map cartrom part!\n");
 		return NULL;
