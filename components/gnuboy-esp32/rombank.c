@@ -95,18 +95,17 @@ void rombankUnload() {
 	romBankUnloadBootrom();
 }
 
-extern unsigned char *gbbootromdata;
-
 uint8_t bootromLoaded=0; //for save state
 
 void rombankLoadBootrom() {
 	if (bootrom) free(bootrom);
+	if (hw.gbbootromdata==NULL) return; //no boot rom to load
 	uint8_t *oldBank=getRomBank(0);
 	bootrom=malloc(2304);
 	if (bootrom==NULL) {
 		die("Can't allocate 2304 bytes for boot ROM!\n");
 	}
-	memcpy(bootrom,gbbootromdata, 2304);
+	memcpy(bootrom,hw.gbbootromdata, 2304);
 	memcpy(bootrom+256, oldBank+256, 256);
 	bootromLoaded=1;
 }

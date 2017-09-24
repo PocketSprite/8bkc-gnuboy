@@ -167,11 +167,15 @@ int rom_load()
 	mbc.rombank = 1;
 	mbc.rambank = 0;
 
-//	c = header[0x0143];
-//	hw.cgb = ((c == 0x80) || (c == 0xc0)) && !forcedmg;
-//	hw.gba = (hw.cgb && gbamode);
-	hw.cgb=1;
-
+	if (hw.gbbootromdata) {
+		//cgb boot rom will figure things out
+		hw.cgb=1;
+	} else {
+		//need to do setup ourselves
+		c = header[0x0143];
+		hw.cgb = ((c == 0x80) || (c == 0xc0)) && !forcedmg;
+		hw.gba = (hw.cgb && gbamode);
+	}
 
 	return 1;
 }

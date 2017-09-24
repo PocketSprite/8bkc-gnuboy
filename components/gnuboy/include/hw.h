@@ -28,6 +28,7 @@ struct hw
 	byte pad;
 	int cgb, gba;
 	int hdma;
+	byte *gbbootromdata;
 };
 
 

@@ -255,9 +255,11 @@ void cpu_reset()
 
 	IME = 0;
 	IMA = 0;
-	
-//	PC = 0x0100; //for direct cartridge boot
-	PC = 0x0000; //for bootROM boot
+	if (hw.gbbootromdata==NULL) {
+		PC = 0x0100; //for direct cartridge boot
+	} else {
+		PC = 0x0000; //for bootROM boot
+	}
 	SP = 0xFFFE;
 	AF = 0x01B0;
 	BC = 0x0013;

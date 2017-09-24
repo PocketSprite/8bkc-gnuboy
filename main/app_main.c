@@ -32,8 +32,6 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
-unsigned char *gbbootromdata=NULL;
-
 char statefile[128];
 
 void gnuboyTask(void *pvParameters) {
@@ -138,18 +136,18 @@ void app_main()
 	kchal_init();
 	nvs_flash_init();
 	
+	hw.gbbootromdata=NULL;
 	if (appfsExists(BOOTROM_NAME)) {
 		appfs_handle_t fd=appfsOpen(BOOTROM_NAME);
-		err=appfsMmap(fd, 0, 2304, (const void**)&gbbootromdata, SPI_FLASH_MMAP_DATA, &hbootrom);
+		err=appfsMmap(fd, 0, 2304, (const void**)&hw.gbbootromdata, SPI_FLASH_MMAP_DATA, &hbootrom);
 		if (err==ESP_OK) {
-			printf("Bootrom loaded.\n");
+			printf("Initialized. bootROM@%p\n", hw.gbbootromdata);
 		} else {
 			printf("Couldn't map bootrom appfs file!\n");
 		}
 	} else {
 		printf("No bootrom found!\n");
 	}
-	printf("Initialized. bootROM@%p\n", gbbootromdata);
 	xTaskCreatePinnedToCore(&lineTask, "lineTask", 1024, NULL, 6, NULL, 1);
 	xTaskCreatePinnedToCore(&gnuboyTask, "gnuboyTask", 1024*6, NULL, 5, NULL, 0);
 	xTaskCreatePinnedToCore(&monTask, "monTask", 1024*2, NULL, 7, NULL, 0);
