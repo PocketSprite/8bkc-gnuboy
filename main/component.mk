@@ -7,7 +7,11 @@
 # please read the ESP-IDF documents if you need to do this.
 #
 
-CFLAGS += -DIS_LITTLE_ENDIAN -DGNUBOYDBG -O3 -Wno-error=strict-aliasing
+COMPILEDATE:=\"$(shell date "+%d %b %Y")\"
+GITREV:=\"$(shell git rev-parse HEAD | cut -b 1-10)\"
+
+CFLAGS += -DIS_LITTLE_ENDIAN -DGNUBOYDBG -O3 -Wno-error=strict-aliasing 
+CFLAGS += -DCOMPILEDATE="$(COMPILEDATE)" -DGITREV="$(GITREV)"
 
 
 include $(IDF_PATH)/make/component_common.mk

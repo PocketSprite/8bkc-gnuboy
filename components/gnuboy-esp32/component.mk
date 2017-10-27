@@ -13,10 +13,6 @@ COMPONENT_PRIV_INCLUDEDIRS := localinclude
 COMPONENTS_EXTRA_CLEAN := graphics.inc graphics.rgba
 menu.o: graphics.inc
 
-
-include $(IDF_PATH)/make/component_common.mk
-
-
 graphics.inc: $(COMPONENT_PATH)/graphics.xcf
 	convert $^ -background none -layers flatten -crop 80x307+0+0 graphics.rgba
 	cat graphics.rgba | xxd -i > graphics.inc

@@ -26,6 +26,7 @@
 
 #include "8bkc-hal.h"
 #include "8bkc-ugui.h"
+#include "ugui.h"
 #include "8bkcgui-widgets.h"
 #include "appfs.h"
 
@@ -33,6 +34,33 @@
 #include "nvs_flash.h"
 
 char statefile[128];
+
+static void debug_screen() {
+	kcugui_cls();
+	UG_FontSelect(&FONT_6X8);
+	UG_SetForecolor(C_WHITE);
+	UG_PutString(0, 0, "INFO");
+	UG_SetForecolor(C_YELLOW);
+	UG_PutString(0, 16, "GnuBoy");
+	UG_PutString(0, 24, "Gitrev");
+	UG_SetForecolor(C_WHITE);
+	UG_PutString(0, 32, GITREV);
+	UG_SetForecolor(C_YELLOW);
+	UG_PutString(0, 40, "Compiled");
+	UG_SetForecolor(C_WHITE);
+	UG_PutString(0, 48, COMPILEDATE);
+	kcugui_flush();
+
+	while (kchal_get_keys()&KC_BTN_SELECT) vTaskDelay(100/portTICK_RATE_MS);
+	while (!(kchal_get_keys()&KC_BTN_SELECT)) vTaskDelay(100/portTICK_RATE_MS);
+}
+
+static int fccallback(int button, char **glob, char **desc, void *usrptr) {
+	if (button & KC_BTN_POWER) kchal_power_down();
+	if (button & KC_BTN_SELECT) debug_screen();
+	return 0;
+}
+
 
 void gnuboyTask(void *pvParameters) {
 	char rom[128]="";
@@ -52,7 +80,7 @@ void gnuboyTask(void *pvParameters) {
 
 	while(1) {
 		int emuRan=0;
-		if (r==ESP_OK && strlen(rom)>0 && appfsExists(rom)) {
+		if (strlen(rom)>0 && appfsExists(rom)) {
 			//Figure out name for statefile
 			strcpy(statefile, rom);
 			char *dot=strrchr(statefile, '.');
@@ -85,7 +113,7 @@ void gnuboyTask(void *pvParameters) {
 
 		if (ret==EMU_RUN_NEWROM) {
 			kcugui_init();
-			appfs_handle_t f=kcugui_filechooser("*.gb,*.gbc", "SELECT ROM", NULL, NULL);
+			appfs_handle_t f=kcugui_filechooser("*.gb,*.gbc", "SELECT ROM", fccallback, NULL);
 			const char *rrom;
 			appfsEntryInfo(f, &rrom, NULL);
 			strncpy(rom, rrom, sizeof(rom));
