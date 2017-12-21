@@ -64,19 +64,15 @@ static int fccallback(int button, char **glob, char **desc, void *usrptr) {
 
 void gnuboyTask(void *pvParameters) {
 	char rom[128]="";
-	nvs_handle nvsh;
+	nvs_handle nvsh=kchal_get_app_nvsh();;
 	//Let other threads start
 	vTaskDelay(200/portTICK_PERIOD_MS);
-	esp_err_t r=nvs_open("gnuboy", NVS_READWRITE, &nvsh);
-	if (r!=ESP_OK) {
-		printf("nvs_open err %d\n", r);
-	}
 
 	int ret;
 	int loadState=1;
 
 	unsigned int size=sizeof(rom);
-	r=nvs_get_str(nvsh, "rom", rom, &size);
+	esp_err_t r=nvs_get_str(nvsh, "rom", rom, &size);
 
 	while(1) {
 		int emuRan=0;

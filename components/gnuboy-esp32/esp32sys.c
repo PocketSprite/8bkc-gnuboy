@@ -40,7 +40,9 @@ int sys_handle_input() {
 	if (k&KC_BTN_A) hw.pad|=PAD_A;
 	if (k&KC_BTN_B) hw.pad|=PAD_B;
 	if (k&KC_BTN_POWER) {
-		return gbfemtoShowMenu();
+		int r=gbfemtoShowMenu();
+		while (kchal_get_keys() & KC_BTN_POWER) vTaskDelay(10);
+		return r;
 	}
 	return EMU_RUN_CONT;
 }

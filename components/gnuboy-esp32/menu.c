@@ -82,6 +82,7 @@ int gbfemtoShowMenu() {
 	int prevItem=0;
 	int scroll=0;
 	int doRefresh=1;
+	int powerReleased=0;
 	uint32_t *overlay=vidGetOverlayBuf();
 	kchal_sound_mute(1);
 	while(1) {
@@ -136,8 +137,13 @@ int gbfemtoShowMenu() {
 				return EMU_RUN_EXIT;
 			}
 		}
+		if (io&KC_BTN_POWER_LONG) {
+			gbfemtoShowSnapshotting(overlay);
+			return EMU_RUN_POWERDOWN;
+		}
 
-		if (io&KC_BTN_START) {
+		if (!(io&KC_BTN_POWER)) powerReleased=1;
+		if (io&KC_BTN_START || (powerReleased && (io&KC_BTN_POWER))) {
 			kchal_sound_mute(0);
 			return EMU_RUN_CONT;
 		}
