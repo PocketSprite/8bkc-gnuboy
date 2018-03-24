@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-EXTRA_COMPONENT_DIRS := /home/jeroen/esp8266/esp32/8bkc-sdk/8bkc-components/
+EXTRA_COMPONENT_DIRS := $(POCKETSPRITE_PATH)/8bkc-components/
 
 PROJECT_NAME := gnuboy
 
