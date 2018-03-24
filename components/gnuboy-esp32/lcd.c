@@ -158,22 +158,30 @@ int getAvgPix(uint16_t* bufs, int pitch, int x, int y) {
 //Bitmasks:
 //RRRR.RGGG.GGGB.BBBB
 //1111.0111.1101.1110 = F7DE
+//0000.1000.0010.0001 = 0821
 //1111.1000.0000.0000 = F800
 //0000.0111.1110.0000 = 07E0
 //0000.0000.0001.1111 = 001F
 //so (RGB565val&0xF7DE)>>1 halves the R, G, B color components.
 int getAvgPixSubpixrendering(uint16_t* bufs, int pitch, int x, int y) {
-	int c1, c2, col;
+	uint32_t *pixduo=(uint32_t*)bufs;
 	if (x<0 || x>=160) return 0;
-	//Average left two pixels
-	c1=(bufs[x+(y*(pitch>>1))]&0xF7DE)>>1;
-	c1+=(bufs[x+((y+1)*(pitch>>1))]&0xF7DE)>>1;
-	//Average right two pixels
-	c2=(bufs[(x+1)+(y*(pitch>>1))]&0xF7DE)>>1;
-	c2+=(bufs[(x+1)+((y+1)*(pitch>>1))]&0xF7DE)>>1;
-	//Take R from C1, G from C1+C2, B from C2
-	col=(c1&0xF800)+((c1&0x7C0)>>1)+((c2&0x7C0)>>1)+(c2&0x1F);
-	return col;
+	//Grab top and bottom two pixels.
+	uint32_t c1=pixduo[(x/2)+(y*(pitch>>2))];
+	uint32_t c2=pixduo[(x/2)+((y+1)*(pitch>>2))];
+	//Average the two.
+	uint32_t c=((c1&0xF7DEF7DE)+(c2&0xF7DEF7DE))>>1;
+	//The averaging action essentially killed the least significant bit of all colors; if
+	//both were one the resulting color should be one more. Compensate for that here.
+	c+=(c1&c1)&0x08210821;
+
+	//Take the various components from the pixels and return the composite.
+	uint32_t red_comp=c&0xF800;
+	uint32_t green_comp=c&0x07E0;
+	green_comp+=(c>>16)&0x07E0;
+	green_comp=(green_comp/2)&0x7E0;
+	uint32_t blue_comp=(c>>16)&0x001F;
+	return red_comp+green_comp+blue_comp;
 }
 
 //Averages 6 pixels into one (area of w=2, h=3), but does subpixel rendering to give a slightly higher
