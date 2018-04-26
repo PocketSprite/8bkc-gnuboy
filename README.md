@@ -1,5 +1,5 @@
 
-This is a port of GnuBoy for the 8Bit Key.
+This is a port of GnuBoy for the PocketSprite
 
 
 Needed to compile: 
@@ -8,7 +8,7 @@ Needed to compile:
 - Host tools: ImageMagick (convert), xxd
 
 How to compile:
-- Run 'make' in this directoru
+- Run 'make' in this directory
 - Rename build/gnuboy.bin to gnuboy.app
 - Upload to 8Bit Key
 - Run

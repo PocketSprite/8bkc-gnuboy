@@ -22,6 +22,7 @@
 #include "sys.h"
 
 #include "rombank.h"
+#include "esp_heap_caps.h"
 
 static const int mbc_table[256] =
 {
@@ -148,20 +149,37 @@ int rom_load()
 
 	rlen = 16384 * mbc.romsize;
 	
-	if (mbc.ramsize > 2) {
+	if (mbc.ramsize > 4) {
 		printf("Header says cart has %d * 8K of save RAM. We don't have that; trying with less.\n", mbc.ramsize);
-		mbc.ramsize=2;
+		mbc.ramsize=4;
 	}
 	
-	ram.sbank = malloc(8192 * mbc.ramsize);
+	ram.prev_rambank=-1;
+	ram.sbank = malloc(8192); //swap space
 	if (ram.sbank==NULL) {
-		printf("Can't allocate %d bytes for SRAM!\n", 8192 * mbc.ramsize);
+		printf("Can't allocate SRAM swap area!\n");
 		return 0;
 	}
-	printf("%d banks of 8K memory, %d rom banks of 16K initialized.\n", mbc.ramsize, mbc.romsize);
-	printf("%p\n", ram.sbank);
+	
+	ram.sbanks = calloc(sizeof(byte*), mbc.ramsize);
+	if (ram.sbanks==NULL) {
+		printf("Can't allocate SRAM pointers!\n");
+		return 0;
+	}
 
-	initmem(ram.sbank, 8192 * mbc.ramsize);
+	for (int i=0; i<mbc.ramsize; i++) {
+		ram.sbanks[i] = heap_caps_malloc(8192,  MALLOC_CAP_32BIT); //allocate in iram
+		if (ram.sbanks[i]==NULL) {
+			printf("Can't allocate 8K bytes for SRAM bank %d in IRAM!\n", i);
+			return 0;
+		}
+		select_rambank(i);
+		initmem(ram.sbank, 8192);
+	}
+	select_rambank(0);
+
+	printf("%d banks of 8K memory, %d rom banks of 16K initialized.\n", mbc.ramsize, mbc.romsize);
+
 	initmem(ram.ibank, 4096 * 8);
 
 	mbc.rombank = 1;
@@ -180,119 +198,18 @@ int rom_load()
 	return 1;
 }
 
-int sram_load()
-{
-#if 0
-	FILE *f;
-
-	if (!mbc.batt || !sramfile || !*sramfile) return -1;
-
-	/* Consider sram loaded at this point, even if file doesn't exist */
-	ram.loaded = 1;
-
-	f = fopen(sramfile, "rb");
-	if (!f) return -1;
-	fread(ram.sbank, 8192, mbc.ramsize, f);
-	fclose(f);
-	
-#endif
-	return 0;
-}
-
-
-int sram_save()
-{
-#if 0
-	FILE *f;
-
-	/* If we crash before we ever loaded sram, DO NOT SAVE! */
-	if (!mbc.batt || !sramfile || !ram.loaded || !mbc.ramsize)
-		return -1;
-	
-	f = fopen(sramfile, "wb");
-	if (!f) return -1;
-	fwrite(ram.sbank, 8192, mbc.ramsize, f);
-	fclose(f);
-#endif
-	return 0;
-}
-
-
-void state_save(int n)
-{
-#if 0
-	FILE *f;
-	char *name;
-
-	if (n < 0) n = saveslot;
-	if (n < 0) n = 0;
-	name = malloc(strlen(saveprefix) + 5);
-	sprintf(name, "%s.%03d", saveprefix, n);
-
-	if ((f = fopen(name, "wb")))
-	{
-		savestate(f);
-		fclose(f);
-	}
-	free(name);
-#endif
-}
-
-
-void state_load(int n)
-{
-#if 0
-	FILE *f;
-	char *name;
-
-	if (n < 0) n = saveslot;
-	if (n < 0) n = 0;
-	name = malloc(strlen(saveprefix) + 5);
-	sprintf(name, "%s.%03d", saveprefix, n);
-
-	if ((f = fopen(name, "rb")))
-	{
-		loadstate(f);
-		fclose(f);
-		vram_dirty();
-		pal_dirty();
-		sound_dirty();
-		mem_updatemap();
-	}
-	free(name);
-#endif
-}
-
-void rtc_save()
-{
-#if 0
-	FILE *f;
-	if (!rtc.batt) return;
-	if (!(f = fopen(rtcfile, "wb"))) return;
-	rtc_save_internal(f);
-	fclose(f);
-#endif
-}
-
-void rtc_load()
-{
-#if 0
-	FILE *f;
-	if (!rtc.batt) return;
-	if (!(f = fopen(rtcfile, "r"))) return;
-	rtc_load_internal(f);
-	fclose(f);
-#endif
-}
-
 
 void loader_unload()
 {
 	rombankUnload();
-	sram_save();
 	//if (romfile) free(romfile);
 	if (sramfile) free(sramfile);
 	if (saveprefix) free(saveprefix);
+	printf("loader_unload: freeing %d sram banks\n", mbc.ramsize);
+	for (int i=0; i<mbc.ramsize; i++) {
+		free(ram.sbanks[i]);
+	}
+	free(ram.sbanks);
 	if (ram.sbank) free(ram.sbank);
 	romfile = sramfile = saveprefix = 0;
 	ram.sbank = 0;
@@ -306,17 +223,6 @@ static char *base(char *s)
 	if (p) return p+1;
 	return s;
 }
-#if 0
-static char *ldup(char *s)
-{
-	int i;
-	char *n, *p;
-	p = n = malloc(strlen(s));
-	for (i = 0; s[i]; i++) if (isalnum(s[i])) *(p++) = tolower(s[i]);
-	*p = 0;
-	return n;
-}
-#endif
 
 static void cleanup()
 {
@@ -337,60 +243,6 @@ int loader_init(char *s)
 	if (!r) return r;
 
 	vid_settitle(rom.name);
-#if 0
-	if (savename && *savename)
-	{
-		if (savename[0] == '-' && savename[1] == 0)
-			name = ldup(rom.name);
-		else name = strdup(savename);
-	}
-	else if (romfile && *base(romfile) && strcmp(romfile, "-"))
-	{
-		name = strdup(base(romfile));
-		p = strchr(name, '.');
-		if (p) *p = 0;
-	}
-	else name = ldup(rom.name);
-	
-	saveprefix = malloc(strlen(savedir) + strlen(name) + 2);
-	sprintf(saveprefix, "%s/%s", savedir, name);
-
-	sramfile = malloc(strlen(saveprefix) + 5);
-	strcpy(sramfile, saveprefix);
-	strcat(sramfile, ".sav");
-
-	rtcfile = malloc(strlen(saveprefix) + 5);
-	strcpy(rtcfile, saveprefix);
-	strcat(rtcfile, ".rtc");
-	
-	sram_load();
-	rtc_load();
-
-	atexit(cleanup);
-#endif
 	return r;
 }
-
-/*
-rcvar_t loader_exports[] =
-{
-	RCV_STRING("savedir", &savedir),
-	RCV_STRING("savename", &savename),
-	RCV_INT("saveslot", &saveslot),
-	RCV_BOOL("forcebatt", &forcebatt),
-	RCV_BOOL("nobatt", &nobatt),
-	RCV_BOOL("forcedmg", &forcedmg),
-	RCV_BOOL("gbamode", &gbamode),
-	RCV_INT("memfill", &memfill),
-	RCV_INT("memrand", &memrand),
-	RCV_END
-};
-*/
-
-
-
-
-
-
-
 

@@ -38,7 +38,9 @@ struct ram
 {
 	byte hi[256];
 	byte ibank[8][4096]; //internal mem
-	byte (*sbank)[8192]; //save bank
+	byte *sbank; //current save bank
+	byte **sbanks; //all save banks, from iram
+	int prev_rambank;
 	int loaded;
 };
 
@@ -50,7 +52,7 @@ extern struct ram ram;
 
 
 
-
+void select_rambank(int i);
 void mem_updatemap();
 void ioreg_write(byte r, byte b);
 void mbc_write(int a, byte b);

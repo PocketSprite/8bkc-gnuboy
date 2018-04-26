@@ -201,9 +201,14 @@ void loadstate(appfs_handle_t f)
 	
 	//fseek(f, sramblock<<12, SEEK_SET);
 	//fread(ram.sbank, 4096, srl, f);
-	r=appfsRead(f, sramblock<<12, ram.sbank, 4096*srl);
-	printf("save: load sram @%x len %x\n", sramblock<<12, 4096*srl);
-	if (r!=ESP_OK) die("reading sramblock");
+	for (int i=0; i<srl; i++) {
+		select_rambank(i/2);
+		byte *p=ram.sbank;
+		if (i&1) p+=4096;
+		r=appfsRead(f, (sramblock+i)<<12, p, 4096);
+		printf("save: load sram @%x blk %x\n", (sramblock+i)<<12, i);
+		if (r!=ESP_OK) die("reading sramblock");
+	}
 }
 
 void savestate(appfs_handle_t f)
@@ -279,9 +284,14 @@ void savestate(appfs_handle_t f)
 	
 	//fseek(f, sramblock<<12, SEEK_SET);
 	//fwrite(ram.sbank, 4096, srl, f);
-	r=appfsWrite(f, sramblock<<12, ram.sbank, 4096*srl);
-	printf("save: load sram @%x len %x\n", sramblock<<12, 4096*srl);
-	if (r!=ESP_OK) die("writing sramblock");
+	for (i=0; i<srl; i++) {
+		select_rambank(i/2);
+		byte *p=ram.sbank;
+		if (i&1) p+=4096;
+		r=appfsWrite(f, (sramblock+i)<<12, p, 4096*srl);
+		printf("save: sram @%x blk %x\n", (sramblock+i)<<12, i);
+		if (r!=ESP_OK) die("writing sramblock");
+	}
 }
 
 

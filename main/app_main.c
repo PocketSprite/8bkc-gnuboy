@@ -23,6 +23,7 @@
 #include "sound.h"
 #include "sys.h"
 #include "esp_log.h"
+#include "loader.h"
 
 #include "8bkc-hal.h"
 #include "8bkc-ugui.h"
@@ -93,12 +94,15 @@ void gnuboyTask(void *pvParameters) {
 			ret=EMU_RUN_NEWROM;
 		}
 
-		if (ret==EMU_RUN_NEWROM || ret==EMU_RUN_POWERDOWN || ret==EMU_RUN_EXIT) {
+		//ToDo: Saving state on reset is janky, but atm it's the best way, given the entire emu is unloaded/loaded.
+		if (ret==EMU_RUN_NEWROM || ret==EMU_RUN_POWERDOWN || ret==EMU_RUN_EXIT || ret==EMU_RUN_RESET) {
 			//Saving state only makes sense when emu actually ran...
 			if (emuRan) {
 				//Save state
 				appfs_handle_t fd;
-				r=appfsCreateFile(statefile, 1<<16, &fd);
+				int len=(1<<16);
+				if (mbc.ramsize > 1) len=(2<<16); //need more data for larger sram
+				r=appfsCreateFile(statefile, len, &fd);
 				if (r!=ESP_OK) {
 					printf("Couldn't create save state %s: %d\n", statefile, r);
 				} else {
@@ -106,6 +110,7 @@ void gnuboyTask(void *pvParameters) {
 				}
 			}
 		}
+		if (emuRan) loader_unload(); //free SRAM etc.
 
 		if (ret==EMU_RUN_NEWROM) {
 			kcugui_init();
@@ -137,7 +142,8 @@ void monTask() {
 	while(1) {
 		vTaskDelay(1000/portTICK_PERIOD_MS);
 		printf("Fps: %d\n", frames);
-		printf("Free mem: %d\n", xPortGetFreeHeapSize());
+		printf("Free mem: dram %d\n", xPortGetFreeHeapSize());
+//		heap_caps_print_heap_info(0);
 		frames=0;
 	}
 //	vTaskDelete(NULL);
