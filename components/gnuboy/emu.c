@@ -93,7 +93,12 @@ int emu_run()
 			sys_sleep(0);
 		}
 		int r=sys_handle_input();
-		if (r!=EMU_RUN_CONT) return r;
+		if (r==EMU_RUN_RESET) {
+			//reset is handled internally
+			emu_reset();
+		} else {
+			if (r!=EMU_RUN_CONT) return r;
+		}
 		//doevents();
 		vid_begin();
 		if (framecount) { if (!--framecount) die("finished\n"); }

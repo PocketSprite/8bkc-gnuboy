@@ -30,6 +30,7 @@
 #include "ugui.h"
 #include "8bkcgui-widgets.h"
 #include "appfs.h"
+#include "powerbtn_menu.h"
 
 #include "nvs.h"
 #include "nvs_flash.h"
@@ -57,7 +58,12 @@ static void debug_screen() {
 }
 
 static int fccallback(int button, char **glob, char **desc, void *usrptr) {
-	if (button & KC_BTN_POWER) kchal_power_down();
+	if (button & KC_BTN_POWER) {
+		int r=powerbtn_menu_show(kcugui_get_fb());
+		//No need to save state or anything as we're not in a game.
+		if (r==POWERBTN_MENU_EXIT) kchal_exit_to_chooser();
+		if (r==POWERBTN_MENU_POWERDOWN) kchal_power_down();
+	}
 	if (button & KC_BTN_SELECT) debug_screen();
 	return 0;
 }
@@ -89,13 +95,15 @@ void gnuboyTask(void *pvParameters) {
 			//Run emu
 			kchal_sound_mute(0);
 			ret=gnuboymain(rom, loadState);
+			//Note: ret will never be EMU_RUN_RESET (or EMU_RUN_CONT)  as that is handled inside the 
+			//emulator code itself (ref emu_run)
 			emuRan=1;
 		} else {
 			ret=EMU_RUN_NEWROM;
 		}
 
 		//ToDo: Saving state on reset is janky, but atm it's the best way, given the entire emu is unloaded/loaded.
-		if (ret==EMU_RUN_NEWROM || ret==EMU_RUN_POWERDOWN || ret==EMU_RUN_EXIT || ret==EMU_RUN_RESET) {
+		if (ret==EMU_RUN_NEWROM || ret==EMU_RUN_POWERDOWN || ret==EMU_RUN_EXIT) {
 			//Saving state only makes sense when emu actually ran...
 			if (emuRan) {
 				//Save state
@@ -121,8 +129,6 @@ void gnuboyTask(void *pvParameters) {
 			printf("Selected ROM %s\n", rom);
 			kcugui_deinit();
 			loadState=1;
-		} else if (ret==EMU_RUN_RESET) {
-			loadState=0;
 		} else if (ret==EMU_RUN_POWERDOWN) {
 			nvs_set_str(nvsh, "rom", rom);
 			break;
