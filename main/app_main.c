@@ -68,6 +68,7 @@ static int fccallback(int button, char **glob, char **desc, void *usrptr) {
 	return 0;
 }
 
+#define STATE_TMP_FILE "__gnuboy_statefile.tmp"
 
 void gnuboyTask(void *pvParameters) {
 	char rom[128]="";
@@ -110,11 +111,20 @@ void gnuboyTask(void *pvParameters) {
 				appfs_handle_t fd;
 				int len=(1<<16);
 				if (mbc.ramsize > 1) len=(2<<16); //need more data for larger sram
-				r=appfsCreateFile(statefile, len, &fd);
+
+				r=appfsCreateFile(STATE_TMP_FILE, len, &fd);
+				if (r!=ESP_OK) {
+					//Not enough room... delete old state file and retry
+					appfsDeleteFile(statefile);
+					r=appfsCreateFile(STATE_TMP_FILE, len, &fd);
+				}
+
 				if (r!=ESP_OK) {
 					printf("Couldn't create save state %s: %d\n", statefile, r);
 				} else {
 					savestate(fd);
+					appfsClose(fd);
+					appfsRename(STATE_TMP_FILE, statefile);
 				}
 			}
 		}
@@ -122,7 +132,7 @@ void gnuboyTask(void *pvParameters) {
 
 		if (ret==EMU_RUN_NEWROM) {
 			kcugui_init();
-			appfs_handle_t f=kcugui_filechooser("*.gb,*.gbc", "SELECT ROM", fccallback, NULL);
+			appfs_handle_t f=kcugui_filechooser("*.gb,*.gbc", "SELECT ROM", fccallback, NULL, 0);
 			const char *rrom;
 			appfsEntryInfo(f, &rrom, NULL);
 			strncpy(rom, rrom, sizeof(rom));
