@@ -83,6 +83,7 @@ int gbfemtoShowMenu() {
 	int scroll=0;
 	int doRefresh=1;
 	int powerReleased=0;
+	int oldArrowsTick=-1;
 	uint32_t *overlay=vidGetOverlayBuf();
 	kchal_sound_mute(1);
 	while(1) {
@@ -159,8 +160,18 @@ int gbfemtoShowMenu() {
 		if (scroll) {
 			doRefresh=1;
 			renderGfx(overlay, 0, 16+scroll+((scroll>0)?-64:64), 0,32*menuItem,80,32);
+			oldArrowsTick=-1; //to force arrow redraw
 		} else {
 			renderGfx(overlay, 0, 16, 0,32*menuItem,80,32);
+			//Render arrows
+			int t=xTaskGetTickCount()/(400/portTICK_PERIOD_MS);
+			t=(t&1);
+			if (t!=oldArrowsTick) {
+				doRefresh=1;
+				renderGfx(overlay, 36, 0, t?0:8, 308, 8, 8);
+				renderGfx(overlay, 36, 56, t?16:24, 308, 8, 8);
+				oldArrowsTick=t;
+			}
 		}
 		
 		//Handle volume/brightness bars

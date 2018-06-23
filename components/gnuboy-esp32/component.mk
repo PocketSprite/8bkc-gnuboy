@@ -14,5 +14,5 @@ COMPONENTS_EXTRA_CLEAN := graphics.inc graphics.rgba
 menu.o: graphics.inc
 
 graphics.inc: $(COMPONENT_PATH)/graphics.xcf
-	convert $^ -background none -layers flatten -crop 80x307+0+0 graphics.rgba
+	convert $^ -background none -layers flatten -crop 80x316+0+0 graphics.rgba
 	cat graphics.rgba | xxd -i > graphics.inc
